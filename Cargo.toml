@@ -1,0 +1,6 @@
+[package]
+name = "gamma-lut"
+version = "0.1.0"
+authors = ["Mason Chang <mchang@mozilla.com>"]
+
+[dependencies]
