@@ -191,26 +191,10 @@ pub fn build_gamma_correcting_lut(table: &mut [u8; 256], src: u8, contrast: f32,
     }
 }
 
-/*
-const SkColorSpaceLuminance& SkColorSpaceLuminance::Fetch(SkScalar gamma) {
-    static SkLinearColorSpaceLuminance gSkLinearColorSpaceLuminance;
-    static SkGammaColorSpaceLuminance gSkGammaColorSpaceLuminance;
-    static SkSRGBColorSpaceLuminance gSkSRGBColorSpaceLuminance;
-
-    if (0 == gamma) {
-        return gSkSRGBColorSpaceLuminance;
-    } else if (SK_Scalar1 == gamma) {
-        return gSkLinearColorSpaceLuminance;
-    } else {
-        return gSkGammaColorSpaceLuminance;
-    }
-}
-*/
-
 fn FetchColorSpace(gamma: f32) -> Box<ColorSpaceLuminance> {
-    if (0.0 == gamma) {
+    if 0.0 == gamma {
         return Box::new( SRGBColorSpaceLuminance{} );
-    } else if (1.0 == gamma) {
+    } else if 1.0 == gamma {
         return Box::new( LinearColorSpaceLuminance{} );
     } else {
         return Box::new( GammaColorSpaceLuminance{} );
@@ -218,9 +202,9 @@ fn FetchColorSpace(gamma: f32) -> Box<ColorSpaceLuminance> {
 }
 
 // Skia uses 3 bits per channel for luminance.
-const LUM_BITS :i8 = 3;
+const LUM_BITS :u8 = 3;
 struct gamma_lut {
-    tables: [[u8; 255 ]; 1 << LUM_BITS],
+    tables: [[u8; 256 ]; 1 << LUM_BITS],
 }
 
 impl gamma_lut {
@@ -228,8 +212,21 @@ impl gamma_lut {
         let color = Color::new(0x7f, 0x80, 0x7f);
     }
 
-    fn generate_tables(contrast: f32, paint_gamma: f32, device_gamma: f32) {
+    fn generate_tables(&self, contrast: f32, paint_gamma: f32, device_gamma: f32) {
+        let paint_color_space = FetchColorSpace(paint_gamma);
+        let device_color_space = FetchColorSpace(device_gamma);
 
+        for i in 0..(1 << LUM_BITS) {
+            let luminance = scale255(LUM_BITS, i);
+            let mut table = self.tables[i as usize];
+            build_gamma_correcting_lut(&mut table,
+                                       luminance,
+                                       contrast,
+                                       &*paint_color_space,
+                                       paint_gamma,
+                                       &*device_color_space,
+                                       device_gamma);
+        }
     }
 }
 
