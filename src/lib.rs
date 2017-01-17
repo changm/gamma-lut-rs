@@ -69,6 +69,57 @@ fn round_to_u8(x : f32) -> u8
     (x + 0.5).floor() as u8
 }
 
+/*
+ * Scales base <= 2^N-1 to 2^8-1
+ * @param N [1, 8] the number of bits used by base.
+ * @param base the number to be scaled to [0, 255].
+ */
+fn scale255(n: u8, mut base : u8) -> u8 {
+    base <<= 8 - n;
+    let mut lum = base;
+    let mut i = n;
+
+    while i < 8 {
+        lum |= base >> i;
+        i += n;
+    }
+
+    return lum;
+}
+
+pub struct Color {
+    color: u32,
+}
+
+impl Color {
+    fn get_a(self) -> u8 {
+        return ((self.color >> 24) & 0xFF) as u8;
+    }
+    fn get_g(self) -> u8 {
+        return ((self.color >> 8) & 0xFF) as u8;
+    }
+    fn get_r(self) -> u8 {
+        return ((self.color >> 16) & 0xFF) as u8;
+    }
+    fn get_b(self) -> u8 {
+        return ((self.color >> 0) & 0xFF) as u8;
+    }
+
+    fn new(r: u8, g: u8, b: u8) -> Color {
+        return Color {
+                color: ((r as u32) << 16)|
+                       ((g as u32) << 8) |
+                       b as u32
+        };
+    }
+}
+
+// Since we don't have the background color, we have to default to a luminance color.
+// SkColorSetRGB(0x7F, 0x80, 0x7F);
+
+
+// Skia actually makes 9 gamma tables, then based on the luminance color,
+// fetches the RGB gamma table for that color.
 
 /**
  * A value of 0.5 for SK_GAMMA_CONTRAST appears to be a good compromise.
@@ -137,6 +188,48 @@ pub fn build_gamma_correcting_lut(table: &mut [u8; 256], src: u8, contrast: f32,
 
             ii += 1.0;
         }
+    }
+}
+
+/*
+const SkColorSpaceLuminance& SkColorSpaceLuminance::Fetch(SkScalar gamma) {
+    static SkLinearColorSpaceLuminance gSkLinearColorSpaceLuminance;
+    static SkGammaColorSpaceLuminance gSkGammaColorSpaceLuminance;
+    static SkSRGBColorSpaceLuminance gSkSRGBColorSpaceLuminance;
+
+    if (0 == gamma) {
+        return gSkSRGBColorSpaceLuminance;
+    } else if (SK_Scalar1 == gamma) {
+        return gSkLinearColorSpaceLuminance;
+    } else {
+        return gSkGammaColorSpaceLuminance;
+    }
+}
+*/
+
+fn FetchColorSpace(gamma: f32) -> Box<ColorSpaceLuminance> {
+    if (0.0 == gamma) {
+        return Box::new( SRGBColorSpaceLuminance{} );
+    } else if (1.0 == gamma) {
+        return Box::new( LinearColorSpaceLuminance{} );
+    } else {
+        return Box::new( GammaColorSpaceLuminance{} );
+    }
+}
+
+// Skia uses 3 bits per channel for luminance.
+const LUM_BITS :i8 = 3;
+struct gamma_lut {
+    tables: [[u8; 255 ]; 1 << LUM_BITS],
+}
+
+impl gamma_lut {
+    fn preblend() {
+        let color = Color::new(0x7f, 0x80, 0x7f);
+    }
+
+    fn generate_tables(contrast: f32, paint_gamma: f32, device_gamma: f32) {
+
     }
 }
 
