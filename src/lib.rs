@@ -202,8 +202,8 @@ fn FetchColorSpace(gamma: f32) -> Box<ColorSpaceLuminance> {
 }
 
 // Skia uses 3 bits per channel for luminance.
-const LUM_BITS :u8 = 3;
-struct gamma_lut {
+pub const LUM_BITS :u8 = 3;
+pub struct gamma_lut {
     tables: [[u8; 256 ]; 1 << LUM_BITS],
 }
 
@@ -227,6 +227,37 @@ impl gamma_lut {
                                        &*device_color_space,
                                        device_gamma);
         }
+    }
+
+    fn table_count() -> usize {
+        return 1 << LUM_BITS;
+    }
+
+    pub fn print_values(&self) {
+        for x in 0..256 {
+            println!("[{:?}] = {:?}", x, self.tables[0][x])
+        }
+
+        /*
+        for i in 0..gamma_lut::table_count() {
+            let table = self.tables[i];
+            println!("Table: {:?}", i);
+
+            for x in 0..256 {
+                println!("[{:?}] = {:?}", x, table[x])
+            }
+        }
+        */
+    }
+
+    pub fn new(contrast: f32, paint_gamma: f32, device_gamma: f32) -> gamma_lut {
+        let table = gamma_lut {
+            tables: [[0; 256]; 1 << LUM_BITS],
+        };
+
+        table.generate_tables(contrast, paint_gamma, device_gamma);
+
+        table
     }
 }
 

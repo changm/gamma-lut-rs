@@ -3,4 +3,12 @@ name = "gamma-lut"
 version = "0.1.0"
 authors = ["Mason Chang <mchang@mozilla.com>"]
 
+[lib]
+name = "gamma_lut"
+path = "src/lib.rs"
+
+[[bin]]
+name = "gamma_lut_bin"
+path = "src/main.rs"
+
 [dependencies]
