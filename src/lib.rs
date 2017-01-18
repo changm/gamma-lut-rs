@@ -114,13 +114,6 @@ impl Color {
     }
 }
 
-// Since we don't have the background color, we have to default to a luminance color.
-// SkColorSetRGB(0x7F, 0x80, 0x7F);
-
-
-// Skia actually makes 9 gamma tables, then based on the luminance color,
-// fetches the RGB gamma table for that color.
-
 /**
  * A value of 0.5 for SK_GAMMA_CONTRAST appears to be a good compromise.
  * With lower values small text appears washed out (though correctly so).
@@ -209,6 +202,8 @@ pub struct gamma_lut {
 }
 
 impl gamma_lut {
+    // Skia actually makes 9 gamma tables, then based on the luminance color,
+    // fetches the RGB gamma table for that color.
     fn generate_tables(&mut self, contrast: f32, paint_gamma: f32, device_gamma: f32) {
         let paint_color_space = FetchColorSpace(paint_gamma);
         let device_color_space = FetchColorSpace(device_gamma);
