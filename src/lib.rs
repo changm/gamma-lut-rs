@@ -186,7 +186,7 @@ pub fn build_gamma_correcting_lut(table: &mut [u8; 256], src: u8, contrast: f32,
     }
 }
 
-fn FetchColorSpace(gamma: f32) -> Box<ColorSpaceLuminance> {
+fn fetch_color_space(gamma: f32) -> Box<ColorSpaceLuminance> {
     if 0.0 == gamma {
         return Box::new( SRGBColorSpaceLuminance{} );
     } else if 1.0 == gamma {
@@ -198,16 +198,16 @@ fn FetchColorSpace(gamma: f32) -> Box<ColorSpaceLuminance> {
 
 // Skia uses 3 bits per channel for luminance.
 pub const LUM_BITS :u8 = 3;
-pub struct gamma_lut {
+pub struct GammaLut {
     tables: [[u8; 256 ]; 1 << LUM_BITS],
 }
 
-impl gamma_lut {
+impl GammaLut {
     // Skia actually makes 9 gamma tables, then based on the luminance color,
     // fetches the RGB gamma table for that color.
     fn generate_tables(&mut self, contrast: f32, paint_gamma: f32, device_gamma: f32) {
-        let paint_color_space = FetchColorSpace(paint_gamma);
-        let device_color_space = FetchColorSpace(device_gamma);
+        let paint_color_space = fetch_color_space(paint_gamma);
+        let device_color_space = fetch_color_space(device_gamma);
 
         for i in 0..(1 << LUM_BITS) {
             let luminance = scale255(LUM_BITS, i);
@@ -236,8 +236,8 @@ impl gamma_lut {
         return self.tables[(color >> (8 - LUM_BITS)) as usize];
     }
 
-    pub fn new(contrast: f32, paint_gamma: f32, device_gamma: f32) -> gamma_lut {
-        let mut table = gamma_lut {
+    pub fn new(contrast: f32, paint_gamma: f32, device_gamma: f32) -> GammaLut {
+        let mut table = GammaLut {
             tables: [[0; 256]; 1 << LUM_BITS],
         };
 
@@ -263,7 +263,7 @@ impl preblend_lut {
     }
 
     pub fn new(contrast: f32, paint_gamma: f32, device_gamma: f32, preblend_color: Color) -> preblend_lut {
-        let gamma_table = gamma_lut::new(contrast, paint_gamma, device_gamma);
+        let gamma_table = GammaLut::new(contrast, paint_gamma, device_gamma);
 
         preblend_lut {
             r_table : gamma_table.get_table(preblend_color.get_r().clone()),
