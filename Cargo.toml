@@ -1,6 +1,6 @@
 [package]
 name = "gamma_lut"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Mason Chang <mchang@mozilla.com>"]
 description = "Rust port of Skia gamma correcting tables"
 keywords = ["gamma"]
