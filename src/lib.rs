@@ -87,6 +87,7 @@ fn scale255(n: u8, mut base : u8) -> u8 {
     return lum;
 }
 
+#[derive(Copy, Clone)]
 pub struct Color {
     color: u32,
 }
@@ -225,49 +226,14 @@ impl gamma_lut {
         return 1 << LUM_BITS;
     }
 
-    pub fn print_values(&self) {
+    pub fn print_values(&self, table: usize) {
         for x in 0..256 {
-            println!("[{:?}] = {:?}", x, self.tables[0][x])
+            println!("[{:?}] = {:?}", x, self.tables[table][x])
         }
-
-        /*
-        for i in 0..gamma_lut::table_count() {
-            let table = self.tables[i];
-            println!("Table: {:?}", i);
-
-            for x in 0..256 {
-                println!("[{:?}] = {:?}", x, table[x])
-            }
-        }
-        */
     }
 
     fn get_table(&self, color: u8) -> [u8; 256] {
         return self.tables[(color >> (8 - LUM_BITS)) as usize];
-    }
-
-    pub fn get_default_blue_table(&self) -> [u8; 256] {
-        let preblend_color :Color = Color::new(0x7f, 0x80, 0x7f);
-
-        let blue = preblend_color.get_b();
-        self.get_table(blue)
-    }
-
-    pub fn get_default_green_table(&self) -> [u8; 256] {
-        let preblend_color :Color = Color::new(0x7f, 0x80, 0x7f);
-
-        let green = preblend_color.get_g();
-        self.get_table(green)
-    }
-
-    pub fn get_default_red_table(&self) -> [u8; 256] {
-        // Skia normally preblends based on what the background color is
-        // Since we're using shaders, we can't do that, so preblend
-        // based on the colors picked by Skia.
-        let preblend_color :Color = Color::new(0x7f, 0x80, 0x7f);
-
-        let red = preblend_color.get_r();
-        self.get_table(red)
     }
 
     pub fn new(contrast: f32, paint_gamma: f32, device_gamma: f32) -> gamma_lut {
@@ -278,6 +244,32 @@ impl gamma_lut {
         table.generate_tables(contrast, paint_gamma, device_gamma);
 
         table
+    }
+}
+
+pub struct preblend_lut {
+    r_table: [u8; 256],
+    g_table: [u8; 256],
+    b_table: [u8; 256],
+}
+
+impl preblend_lut {
+    pub fn new_default_color(contrast: f32, paint_gamma: f32, device_gamma: f32) -> preblend_lut {
+        // Skia normally preblends based on what the background color is
+        // Since we're using shaders, we can't do that, so preblend
+        // based on the colors picked by Skia.
+        let preblend_color :Color = Color::new(0x7f, 0x80, 0x7f);
+        preblend_lut::new(contrast, paint_gamma, device_gamma, preblend_color)
+    }
+
+    pub fn new(contrast: f32, paint_gamma: f32, device_gamma: f32, preblend_color: Color) -> preblend_lut {
+        let gamma_table = gamma_lut::new(contrast, paint_gamma, device_gamma);
+
+        preblend_lut {
+            r_table : gamma_table.get_table(preblend_color.get_r().clone()),
+            g_table : gamma_table.get_table(preblend_color.get_g().clone()),
+            b_table : gamma_table.get_table(preblend_color.get_b().clone()),
+        }
     }
 }
 
