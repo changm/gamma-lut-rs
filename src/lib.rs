@@ -247,25 +247,25 @@ impl GammaLut {
     }
 }
 
-pub struct preblend_lut {
+pub struct PreblendLut {
     r_table: [u8; 256],
     g_table: [u8; 256],
     b_table: [u8; 256],
 }
 
-impl preblend_lut {
-    pub fn new_default_color(contrast: f32, paint_gamma: f32, device_gamma: f32) -> preblend_lut {
+impl PreblendLut {
+    pub fn new_default_color(contrast: f32, paint_gamma: f32, device_gamma: f32) -> PreblendLut {
         // Skia normally preblends based on what the background color is
         // Since we're using shaders, we can't do that, so preblend
         // based on the colors picked by Skia.
         let preblend_color :Color = Color::new(0x7f, 0x80, 0x7f);
-        preblend_lut::new(contrast, paint_gamma, device_gamma, preblend_color)
+        PreblendLut::new(contrast, paint_gamma, device_gamma, preblend_color)
     }
 
-    pub fn new(contrast: f32, paint_gamma: f32, device_gamma: f32, preblend_color: Color) -> preblend_lut {
+    pub fn new(contrast: f32, paint_gamma: f32, device_gamma: f32, preblend_color: Color) -> PreblendLut {
         let gamma_table = GammaLut::new(contrast, paint_gamma, device_gamma);
 
-        preblend_lut {
+        PreblendLut {
             r_table : gamma_table.get_table(preblend_color.get_r().clone()),
             g_table : gamma_table.get_table(preblend_color.get_g().clone()),
             b_table : gamma_table.get_table(preblend_color.get_b().clone()),

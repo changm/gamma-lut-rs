@@ -4,6 +4,6 @@ fn main() {
     let contrast = 0.0;
     let gamma = 0.0;
 
-    let table = gamma_lut::gamma_lut::new(contrast, gamma, gamma);
+    let table = gamma_lut::GammaLut::new(contrast, gamma, gamma);
     table.print_values(0);
 }
