@@ -184,6 +184,7 @@ pub fn build_gamma_correcting_lut(table: &mut [u8; 256], src: u8, contrast: f32,
             // solving for result gives:
             let result = (out - dst) / (src - dst);
 
+            //println!("Setting {:?} to {:?}", i, round_to_u8(255.0 * result));
             table[i] = round_to_u8(255.0 * result);
 
             ii += 1.0;
@@ -208,18 +209,14 @@ pub struct gamma_lut {
 }
 
 impl gamma_lut {
-    fn preblend() {
-        let color = Color::new(0x7f, 0x80, 0x7f);
-    }
-
-    fn generate_tables(&self, contrast: f32, paint_gamma: f32, device_gamma: f32) {
+    fn generate_tables(&mut self, contrast: f32, paint_gamma: f32, device_gamma: f32) {
         let paint_color_space = FetchColorSpace(paint_gamma);
         let device_color_space = FetchColorSpace(device_gamma);
 
         for i in 0..(1 << LUM_BITS) {
             let luminance = scale255(LUM_BITS, i);
-            let mut table = self.tables[i as usize];
-            build_gamma_correcting_lut(&mut table,
+            println!("Luminance for {:?} is {:?}", i, luminance);
+            build_gamma_correcting_lut(&mut self.tables[i as usize],
                                        luminance,
                                        contrast,
                                        &*paint_color_space,
@@ -250,8 +247,36 @@ impl gamma_lut {
         */
     }
 
+    fn get_table(&self, color: u8) -> [u8; 256] {
+        return self.tables[(color >> (8 - LUM_BITS)) as usize];
+    }
+
+    pub fn get_default_blue_table(&self) -> [u8; 256] {
+        let preblend_color :Color = Color::new(0x7f, 0x80, 0x7f);
+
+        let blue = preblend_color.get_b();
+        self.get_table(blue)
+    }
+
+    pub fn get_default_green_table(&self) -> [u8; 256] {
+        let preblend_color :Color = Color::new(0x7f, 0x80, 0x7f);
+
+        let green = preblend_color.get_g();
+        self.get_table(green)
+    }
+
+    pub fn get_default_red_table(&self) -> [u8; 256] {
+        // Skia normally preblends based on what the background color is
+        // Since we're using shaders, we can't do that, so preblend
+        // based on the colors picked by Skia.
+        let preblend_color :Color = Color::new(0x7f, 0x80, 0x7f);
+
+        let red = preblend_color.get_r();
+        self.get_table(red)
+    }
+
     pub fn new(contrast: f32, paint_gamma: f32, device_gamma: f32) -> gamma_lut {
-        let table = gamma_lut {
+        let mut table = gamma_lut {
             tables: [[0; 256]; 1 << LUM_BITS],
         };
 
