@@ -116,12 +116,10 @@ impl Color {
     }
 }
 
-/**
- * A value of 0.5 for SK_GAMMA_CONTRAST appears to be a good compromise.
- * With lower values small text appears washed out (though correctly so).
- * With higher values lcd fringing is worse and the smoothing effect of
- * partial coverage is diminished.
- */
+// A value of 0.5 for SK_GAMMA_CONTRAST appears to be a good compromise.
+// With lower values small text appears washed out (though correctly so).
+// With higher values lcd fringing is worse and the smoothing effect of
+// partial coverage is diminished.
 fn apply_contrast(srca: f32, contrast: f32) -> f32 {
     srca + ((1.0 - srca) * contrast * srca)
 }
