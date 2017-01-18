@@ -93,8 +93,8 @@ pub struct Color {
 }
 
 impl Color {
-    fn get_a(self) -> u8 {
-        return ((self.color >> 24) & 0xFF) as u8;
+    fn get_b(self) -> u8 {
+        return ((self.color >> 0) & 0xFF) as u8;
     }
     fn get_g(self) -> u8 {
         return ((self.color >> 8) & 0xFF) as u8;
@@ -102,8 +102,9 @@ impl Color {
     fn get_r(self) -> u8 {
         return ((self.color >> 16) & 0xFF) as u8;
     }
-    fn get_b(self) -> u8 {
-        return ((self.color >> 0) & 0xFF) as u8;
+    #[allow(dead_code)]
+    fn get_a(self) -> u8 {
+        return ((self.color >> 24) & 0xFF) as u8;
     }
 
     fn new(r: u8, g: u8, b: u8) -> Color {
@@ -211,7 +212,6 @@ impl GammaLut {
 
         for i in 0..(1 << LUM_BITS) {
             let luminance = scale255(LUM_BITS, i);
-            println!("Luminance for {:?} is {:?}", i, luminance);
             build_gamma_correcting_lut(&mut self.tables[i as usize],
                                        luminance,
                                        contrast,
@@ -222,6 +222,7 @@ impl GammaLut {
         }
     }
 
+    #[allow(dead_code)]
     fn table_count() -> usize {
         return 1 << LUM_BITS;
     }
@@ -269,6 +270,15 @@ impl PreblendLut {
             r_table : gamma_table.get_table(preblend_color.get_r().clone()),
             g_table : gamma_table.get_table(preblend_color.get_g().clone()),
             b_table : gamma_table.get_table(preblend_color.get_b().clone()),
+        }
+    }
+
+    pub fn print_table(&self) {
+        for x in 0..256 {
+            println!("{:?} == ({:?}, {:?}, {:?})", x,
+                    self.r_table[x],
+                    self.g_table[x],
+                    self.b_table[x]);
         }
     }
 }
