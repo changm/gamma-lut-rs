@@ -231,7 +231,7 @@ impl GammaLut {
         }
     }
 
-    fn get_table(&self, color: u8) -> [u8; 256] {
+    pub fn get_table(&self, color: u8) -> [u8; 256] {
         return self.tables[(color >> (8 - LUM_BITS)) as usize];
     }
 
