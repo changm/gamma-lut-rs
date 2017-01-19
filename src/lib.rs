@@ -288,7 +288,7 @@ impl GammaLut {
                 pixel[2] = table_b[pixel[2] as usize];
                 // Don't touch alpha
             }
-		}
+        }
     }
 
     // Assumes pixels are in RGBA format. Assumes pixel values are in linear space already.
