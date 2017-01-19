@@ -16,3 +16,4 @@ name = "gamma_lut_bin"
 path = "src/main.rs"
 
 [dependencies]
+lazy_static = "0.2"

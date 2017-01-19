@@ -5,6 +5,8 @@
  * found in the LICENSE file.
  */
 
+extern crate lazy_static;
+
 pub trait ColorSpaceLuminance {
 	fn to_luma(&self, gamma: f32, luminance: f32) -> f32;
 	fn from_luma(&self, gamma: f32, luma: f32) -> f32;
@@ -63,8 +65,7 @@ impl ColorSpaceLuminance for SRGBColorSpaceLuminance {
 	}
 }
 
-fn round_to_u8(x : f32) -> u8
-{
+fn round_to_u8(x : f32) -> u8 {
     assert!((x + 0.5).floor() < 256.0);
     (x + 0.5).floor() as u8
 }
@@ -88,32 +89,39 @@ fn scale255(n: u8, mut base : u8) -> u8 {
 }
 
 #[derive(Copy, Clone)]
+#[allow(dead_code)]
 pub struct Color {
-    color: u32,
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
 }
 
 impl Color {
-    fn get_b(self) -> u8 {
-        return ((self.color >> 0) & 0xFF) as u8;
+    pub fn new(r: u8, g: u8, b: u8, a: u8) -> Color {
+        Color {
+            r: r,
+            g: g,
+            b: b,
+            a: a,
+        }
     }
-    fn get_g(self) -> u8 {
-        return ((self.color >> 8) & 0xFF) as u8;
-    }
-    fn get_r(self) -> u8 {
-        return ((self.color >> 16) & 0xFF) as u8;
-    }
-    #[allow(dead_code)]
-    fn get_a(self) -> u8 {
-        return ((self.color >> 24) & 0xFF) as u8;
-    }
+}
 
-    fn new(r: u8, g: u8, b: u8) -> Color {
-        return Color {
-                color: ((r as u32) << 16)|
-                       ((g as u32) << 8) |
-                       b as u32
-        };
-    }
+// This will invert the gamma applied by CoreGraphics,
+// so we can get linear values.
+// CoreGraphics obscurely defaults to 2.0 as the smoothing gamma value.
+// The color space used does not appear to affect this choice.
+fn get_inverse_gamma_table_coregraphics_smoothing() -> [u8; 256] {
+	let mut table : [u8; 256] = [0; 256];
+
+	for i in 0..256 {
+		let x = i as f32 / 255.0;
+		let value = round_to_u8(x * x * 255.0);
+		table[i] = value;
+	}
+
+	table
 }
 
 // A value of 0.5 for SK_GAMMA_CONTRAST appears to be a good compromise.
@@ -195,10 +203,21 @@ fn fetch_color_space(gamma: f32) -> Box<ColorSpaceLuminance> {
     }
 }
 
+// Computes the luminance from the given r, g, and b in accordance with
+// SK_LUM_COEFF_X. For correct results, r, g, and b should be in linear space.
+fn compute_luminance(r: u8, g: u8, b: u8) -> u8 {
+	// The following is
+	// r * SK_LUM_COEFF_R + g * SK_LUM_COEFF_G + b * SK_LUM_COEFF_B
+	// with SK_LUM_COEFF_X in 1.8 fixed point (rounding adjusted to sum to 256).
+	let val : u32 = r as u32 * 54 + g as u32 * 183 + b as u32 * 19;
+	return (val >> 8) as u8;
+}
+
 // Skia uses 3 bits per channel for luminance.
 pub const LUM_BITS :u8 = 3;
 pub struct GammaLut {
     tables: [[u8; 256 ]; 1 << LUM_BITS],
+    cg_inverse_gamma: [u8; 256],
 }
 
 impl GammaLut {
@@ -238,48 +257,75 @@ impl GammaLut {
     pub fn new(contrast: f32, paint_gamma: f32, device_gamma: f32) -> GammaLut {
         let mut table = GammaLut {
             tables: [[0; 256]; 1 << LUM_BITS],
+            cg_inverse_gamma: get_inverse_gamma_table_coregraphics_smoothing(),
         };
 
         table.generate_tables(contrast, paint_gamma, device_gamma);
 
         table
     }
-}
 
-pub struct PreblendLut {
-    r_table: [u8; 256],
-    g_table: [u8; 256],
-    b_table: [u8; 256],
-}
-
-impl PreblendLut {
-    pub fn new_default_color(contrast: f32, paint_gamma: f32, device_gamma: f32) -> PreblendLut {
-        // Skia normally preblends based on what the background color is
-        // Since we're using shaders, we can't do that, so preblend
-        // based on the colors picked by Skia.
-        let preblend_color :Color = Color::new(0x7f, 0x80, 0x7f);
-        PreblendLut::new(contrast, paint_gamma, device_gamma, preblend_color)
+    // Skia normally preblends based on what the text color is.
+    // If we can't do that, use Skia default colors.
+    pub fn preblend_default_colors(&self, pixels: &mut Vec<u8>, width: usize, height: usize) {
+        let preblend_color = Color {
+            r: 0x7f,
+            g: 0x80,
+            b: 0x7f,
+            a: 0xff,
+        };
+        self.preblend(pixels, width, height, preblend_color);
     }
 
-    pub fn new(contrast: f32, paint_gamma: f32, device_gamma: f32, preblend_color: Color) -> PreblendLut {
-        let gamma_table = GammaLut::new(contrast, paint_gamma, device_gamma);
+    fn replace_pixels(&self, pixels: &mut Vec<u8>, width: usize, height: usize,
+                      table_r: [u8; 256], table_g: [u8; 256], table_b: [u8; 256]) {
+         for y in 0..height {
+            let current_height = y * width * 4;
 
-        PreblendLut {
-            r_table : gamma_table.get_table(preblend_color.get_r().clone()),
-            g_table : gamma_table.get_table(preblend_color.get_g().clone()),
-            b_table : gamma_table.get_table(preblend_color.get_b().clone()),
-        }
+            for pixel in pixels[current_height..current_height + (width * 4)].chunks_mut(4) {
+                pixel[0] = table_r[pixel[0] as usize];
+                pixel[1] = table_g[pixel[1] as usize];
+                pixel[2] = table_b[pixel[2] as usize];
+                // Don't touch alpha
+            }
+		}
     }
 
-    pub fn print_table(&self) {
-        for x in 0..256 {
-            println!("{:?} == ({:?}, {:?}, {:?})", x,
-                    self.r_table[x],
-                    self.g_table[x],
-                    self.b_table[x]);
-        }
+    // Assumes pixels are in RGBA format. Assumes pixel values are in linear space already.
+    pub fn preblend(&self, pixels: &mut Vec<u8>, width: usize, height: usize, color: Color) {
+        let table_r = self.get_table(color.r);
+        let table_g = self.get_table(color.g);
+        let table_b = self.get_table(color.b);
+
+        self.replace_pixels(pixels, width, height, table_r, table_g, table_b);
     }
-}
+
+    pub fn coregraphics_convert_to_linear(&self, pixels: &mut Vec<u8>, width: usize, height: usize) {
+        self.replace_pixels(pixels, width, height,
+                            self.cg_inverse_gamma,
+                            self.cg_inverse_gamma,
+                            self.cg_inverse_gamma);
+    }
+
+
+    // Assumes pixels are in RGBA format. Assumes pixel values are in linear space already.
+    pub fn preblend_grayscale(&self, pixels: &mut Vec<u8>, width: usize, height: usize, color: Color) {
+        let table_g = self.get_table(color.g);
+
+         for y in 0..height {
+            let current_height = y * width * 4;
+
+            for pixel in pixels[current_height..current_height + (width * 4)].chunks_mut(4) {
+                let luminance = compute_luminance(pixel[0], pixel[1], pixel[2]);
+                pixel[0] = table_g[luminance as usize];
+                pixel[1] = table_g[luminance as usize];
+                pixel[2] = table_g[luminance as usize];
+                // Don't touch alpha
+            }
+		}
+    }
+
+} // end impl GammaLut
 
 #[cfg(test)]
 mod tests {
