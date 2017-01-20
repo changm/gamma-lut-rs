@@ -267,49 +267,49 @@ impl GammaLut {
 
     // Skia normally preblends based on what the text color is.
     // If we can't do that, use Skia default colors.
-    pub fn preblend_default_colors(&self, pixels: &mut Vec<u8>, width: usize, height: usize) {
+    pub fn preblend_default_colors_bgra(&self, pixels: &mut Vec<u8>, width: usize, height: usize) {
         let preblend_color = Color {
             r: 0x7f,
             g: 0x80,
             b: 0x7f,
             a: 0xff,
         };
-        self.preblend(pixels, width, height, preblend_color);
+        self.preblend_bgra(pixels, width, height, preblend_color);
     }
 
-    fn replace_pixels(&self, pixels: &mut Vec<u8>, width: usize, height: usize,
+    fn replace_pixels_bgra(&self, pixels: &mut Vec<u8>, width: usize, height: usize,
                       table_r: [u8; 256], table_g: [u8; 256], table_b: [u8; 256]) {
          for y in 0..height {
             let current_height = y * width * 4;
 
             for pixel in pixels[current_height..current_height + (width * 4)].chunks_mut(4) {
-                pixel[0] = table_r[pixel[0] as usize];
+                pixel[0] = table_b[pixel[0] as usize];
                 pixel[1] = table_g[pixel[1] as usize];
-                pixel[2] = table_b[pixel[2] as usize];
+                pixel[2] = table_r[pixel[2] as usize];
                 // Don't touch alpha
             }
         }
     }
 
-    // Assumes pixels are in RGBA format. Assumes pixel values are in linear space already.
-    pub fn preblend(&self, pixels: &mut Vec<u8>, width: usize, height: usize, color: Color) {
+    // Assumes pixels are in BGRA format. Assumes pixel values are in linear space already.
+    pub fn preblend_bgra(&self, pixels: &mut Vec<u8>, width: usize, height: usize, color: Color) {
         let table_r = self.get_table(color.r);
         let table_g = self.get_table(color.g);
         let table_b = self.get_table(color.b);
 
-        self.replace_pixels(pixels, width, height, table_r, table_g, table_b);
+        self.replace_pixels_bgra(pixels, width, height, table_r, table_g, table_b);
     }
 
-    pub fn coregraphics_convert_to_linear(&self, pixels: &mut Vec<u8>, width: usize, height: usize) {
-        self.replace_pixels(pixels, width, height,
-                            self.cg_inverse_gamma,
-                            self.cg_inverse_gamma,
-                            self.cg_inverse_gamma);
+    pub fn coregraphics_convert_to_linear_bgra(&self, pixels: &mut Vec<u8>, width: usize, height: usize) {
+        self.replace_pixels_bgra(pixels, width, height,
+                                 self.cg_inverse_gamma,
+                                 self.cg_inverse_gamma,
+                                 self.cg_inverse_gamma);
     }
 
 
-    // Assumes pixels are in RGBA format. Assumes pixel values are in linear space already.
-    pub fn preblend_grayscale(&self, pixels: &mut Vec<u8>, width: usize, height: usize, color: Color) {
+    // Assumes pixels are in BGRA format. Assumes pixel values are in linear space already.
+    pub fn preblend_grayscale_bgra(&self, pixels: &mut Vec<u8>, width: usize, height: usize, color: Color) {
         let table_g = self.get_table(color.g);
 
          for y in 0..height {
