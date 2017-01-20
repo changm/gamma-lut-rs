@@ -215,6 +215,7 @@ fn compute_luminance(r: u8, g: u8, b: u8) -> u8 {
 
 // Skia uses 3 bits per channel for luminance.
 pub const LUM_BITS :u8 = 3;
+#[allow(dead_code)]
 pub struct GammaLut {
     tables: [[u8; 256 ]; 1 << LUM_BITS],
     cg_inverse_gamma: [u8; 256],
@@ -278,7 +279,7 @@ impl GammaLut {
     }
 
     fn replace_pixels_bgra(&self, pixels: &mut Vec<u8>, width: usize, height: usize,
-                      table_r: [u8; 256], table_g: [u8; 256], table_b: [u8; 256]) {
+                           table_r: [u8; 256], table_g: [u8; 256], table_b: [u8; 256]) {
          for y in 0..height {
             let current_height = y * width * 4;
 
@@ -287,6 +288,20 @@ impl GammaLut {
                 pixel[1] = table_g[pixel[1] as usize];
                 pixel[2] = table_r[pixel[2] as usize];
                 // Don't touch alpha
+            }
+        }
+    }
+
+    // Mostly used by windows and GlyphRunAnalysis::GetAlphaTexture
+    fn replace_pixels_rgb(&self, pixels: &mut Vec<u8>, width: usize, height: usize,
+                          table_r: [u8; 256], table_g: [u8; 256], table_b: [u8; 256]) {
+         for y in 0..height {
+            let current_height = y * width * 3;
+
+            for pixel in pixels[current_height..current_height + (width * 3)].chunks_mut(3) {
+                pixel[0] = table_r[pixel[0] as usize];
+                pixel[1] = table_g[pixel[1] as usize];
+                pixel[2] = table_b[pixel[2] as usize];
             }
         }
     }
@@ -300,13 +315,23 @@ impl GammaLut {
         self.replace_pixels_bgra(pixels, width, height, table_r, table_g, table_b);
     }
 
+    // Assumes pixels are in RGB format. Assumes pixel values are in linear space already. NOTE:
+    // there is no alpha here.
+    pub fn preblend_rgb(&self, pixels: &mut Vec<u8>, width: usize, height: usize, color: Color) {
+        let table_r = self.get_table(color.r);
+        let table_g = self.get_table(color.g);
+        let table_b = self.get_table(color.b);
+
+        self.replace_pixels_rgb(pixels, width, height, table_r, table_g, table_b);
+    }
+
+    #[cfg(target_os="macos")]
     pub fn coregraphics_convert_to_linear_bgra(&self, pixels: &mut Vec<u8>, width: usize, height: usize) {
         self.replace_pixels_bgra(pixels, width, height,
                                  self.cg_inverse_gamma,
                                  self.cg_inverse_gamma,
                                  self.cg_inverse_gamma);
     }
-
 
     // Assumes pixels are in BGRA format. Assumes pixel values are in linear space already.
     pub fn preblend_grayscale_bgra(&self, pixels: &mut Vec<u8>, width: usize, height: usize, color: Color) {
