@@ -314,9 +314,9 @@ impl GammaLut {
     #[cfg(target_os="macos")]
     pub fn coregraphics_convert_to_linear_bgra(&self, pixels: &mut [u8], width: usize, height: usize) {
         self.replace_pixels_bgra(pixels, width, height,
-                                 self.cg_inverse_gamma,
-                                 self.cg_inverse_gamma,
-                                 self.cg_inverse_gamma);
+                                 &self.cg_inverse_gamma,
+                                 &self.cg_inverse_gamma,
+                                 &self.cg_inverse_gamma);
     }
 
     // Assumes pixels are in BGRA format. Assumes pixel values are in linear space already.
