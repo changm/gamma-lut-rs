@@ -8,10 +8,14 @@ This is a port of Skia gamma LUT logic into Rust, used by WebRender.
 #[macro_use]
 extern crate log;
 
+/// Color space responsible for converting between lumas and luminances.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LuminanceColorSpace {
+    /// Linear space - no conversion involved.
     Linear,
+    /// Simple gamma space - uses the `luminance ^ gamma` function.
     Gamma(f32),
+    /// Srgb space.
     Srgb,
 }
 
