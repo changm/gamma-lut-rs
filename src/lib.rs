@@ -8,10 +8,14 @@ This is a port of Skia gamma LUT logic into Rust, used by WebRender.
 #[macro_use]
 extern crate log;
 
+/// Color space responsible for converting between lumas and luminances.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LuminanceColorSpace {
+    /// Linear space - no conversion involved.
     Linear,
+    /// Simple gamma space - uses the `luminance ^ gamma` function.
     Gamma(f32),
+    /// Srgb space.
     Srgb,
 }
 
@@ -310,9 +314,9 @@ impl GammaLut {
     #[cfg(target_os="macos")]
     pub fn coregraphics_convert_to_linear_bgra(&self, pixels: &mut [u8], width: usize, height: usize) {
         self.replace_pixels_bgra(pixels, width, height,
-                                 self.cg_inverse_gamma,
-                                 self.cg_inverse_gamma,
-                                 self.cg_inverse_gamma);
+                                 &self.cg_inverse_gamma,
+                                 &self.cg_inverse_gamma,
+                                 &self.cg_inverse_gamma);
     }
 
     // Assumes pixels are in BGRA format. Assumes pixel values are in linear space already.
