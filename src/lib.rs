@@ -329,7 +329,7 @@ impl GammaLut {
             let current_height = y * width * 4;
 
             for pixel in pixels[current_height..current_height + (width * 4)].chunks_mut(4) {
-                let luminance = compute_luminance(pixel[0], pixel[1], pixel[2]);
+                let luminance = compute_luminance(pixel[2], pixel[1], pixel[0]);
                 pixel[0] = table_g[luminance as usize];
                 pixel[1] = table_g[luminance as usize];
                 pixel[2] = table_g[luminance as usize];
