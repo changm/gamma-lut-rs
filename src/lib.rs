@@ -102,6 +102,8 @@ fn compute_luminance(r: u8, g: u8, b: u8) -> u8 {
 
 // Skia uses 3 bits per channel for luminance.
 pub const LUM_BITS: u8 = 3;
+// Mask of the highest 3 bits.
+pub const LUM_MASK: u8 = ((1 << LUM_BITS) - 1) << (8 - LUM_BITS);
 
 #[derive(Copy, Clone)]
 pub struct Color {
@@ -128,6 +130,26 @@ impl Color {
             scale255(LUM_BITS, self.r >> (8 - LUM_BITS)),
             scale255(LUM_BITS, self.g >> (8 - LUM_BITS)),
             scale255(LUM_BITS, self.b >> (8 - LUM_BITS)),
+            self.a,
+        )
+    }
+
+    // Quantize to the smallest value that yields the same table index.
+    pub fn quantized_floor(&self) -> Color {
+        Color::new(
+            self.r & LUM_MASK,
+            self.g & LUM_MASK,
+            self.b & LUM_MASK,
+            self.a,
+        )
+    }
+
+    // Quantize to the largest value that yields the same table index.
+    pub fn quantized_ceil(&self) -> Color {
+        Color::new(
+            self.r | !LUM_MASK,
+            self.g | !LUM_MASK,
+            self.b | !LUM_MASK,
             self.a,
         )
     }
